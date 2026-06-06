@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>You're the Auditor</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;1,400&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d0d0f;
+    --surface: #13131a;
+    --surface2: #1c1c28;
+    --border: #2a2a3d;
+    --accent: #e8c96d;
+    --accent2: #c45c3a;
+    --good: #4a9e7a;
+    --bad: #c45c3a;
+    --text: #e8e8f0;
+    --muted: #6b6b85;
+    --red-glow: rgba(196,92,58,0.15);
+    --gold-glow: rgba(232,201,109,0.15);
+    --green-glow: rgba(74,158,122,0.15);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'IBM Plex Sans', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 20%, rgba(232,201,109,0.04) 0%, transparent 60%),
+      radial-gradient(ellipse 50% 50% at 80% 80%, rgba(196,92,58,0.05) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .screen {
+    display: none;
+    width: 100%;
+    max-width: 600px;
+    position: relative;
+    z-index: 1;
+    animation: fadeUp 0.4s ease forwards;
+  }
+  .screen.active { display: flex; flex-direction: column; align-items: center; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(14px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .intro-eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    color: var(--accent);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    opacity: 0.8;
+  }
+
+  .intro-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.2rem, 8vw, 3.4rem);
+    font-weight: 700;
+    line-height: 1.1;
+    text-align: center;
+    margin-bottom: 6px;
+  }
+
+  .intro-title span { font-style: italic; color: var(--accent); }
+
+  .intro-sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 0.12em;
+    text-align: center;
+    margin-bottom: 32px;
+  }
+
+  .intro-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 24px 28px;
+    width: 100%;
+    margin-bottom: 28px;
+    position: relative;
+  }
+
+  .intro-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+  }
+
+  .intro-card p {
+    font-size: 14px;
+    line-height: 1.7;
+    color: #b0b0c8;
+    font-weight: 300;
+  }
+
+  .intro-card p strong { color: var(--text); font-weight: 500; }
+
+  .prize-banner {
+    background: rgba(232,201,109,0.07);
+    border: 1px solid rgba(232,201,109,0.25);
+    border-radius: 2px;
+    padding: 12px 18px;
+    width: 100%;
+    margin-bottom: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    text-align: center;
+    letter-spacing: 0.05em;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: #0d0d0f;
+    border: none;
+    padding: 16px 48px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 1px;
+    transition: all 0.2s;
+    width: 100%;
+  }
+
+  .btn-primary:hover {
+    background: #f0d880;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(232,201,109,0.25);
+  }
+
+  .progress-bar-wrap {
+    width: 100%;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .progress-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .progress-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+  }
+
+  .timer-display {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    color: var(--accent);
+    font-weight: 500;
+    transition: color 0.3s;
+  }
+
+  .timer-display.urgent { color: var(--accent2); }
+
+  .progress-track {
+    width: 100%;
+    height: 2px;
+    background: var(--border);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 1px;
+    transition: width 0.4s ease;
+  }
+
+  .timer-track {
+    width: 100%;
+    height: 3px;
+    background: var(--border);
+    border-radius: 1px;
+    overflow: hidden;
+  }
+
+  .timer-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 1px;
+    transition: width 1s linear, background 0.3s;
+  }
+
+  .timer-fill.urgent { background: var(--accent2); }
+
+  .scene-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 22px 24px 20px;
+    width: 100%;
+    margin-bottom: 14px;
+  }
+
+  .scene-stamp {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.3em;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+
+  .scene-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.05rem, 4vw, 1.3rem);
+    font-weight: 700;
+    line-height: 1.25;
+    margin-bottom: 10px;
+    color: var(--text);
+  }
+
+  .scene-body {
+    font-size: 14px;
+    line-height: 1.65;
+    color: #a0a0bc;
+    font-weight: 300;
+  }
+
+  .scene-body strong { color: var(--accent); font-weight: 500; }
+
+  .hint-box {
+    background: var(--surface2);
+    border-left: 3px solid var(--accent);
+    padding: 10px 14px;
+    margin-top: 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: #9090b0;
+    line-height: 1.5;
+  }
+
+  .choices-wrap {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .choice-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 14px 18px;
+    width: 100%;
+    text-align: left;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    transition: all 0.18s;
+  }
+
+  .choice-btn:hover {
+    border-color: var(--accent);
+    transform: translateX(3px);
+    background: rgba(232,201,109,0.04);
+  }
+
+  .choice-btn:active { transform: translateX(1px); }
+
+  .choice-letter {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--accent);
+    background: rgba(232,201,109,0.1);
+    border: 1px solid rgba(232,201,109,0.25);
+    border-radius: 1px;
+    width: 26px;
+    height: 26px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .choice-text {
+    font-size: 14px;
+    line-height: 1.45;
+    color: #c0c0d8;
+    font-weight: 300;
+  }
+
+  .feedback-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(13,13,15,0.88);
+    backdrop-filter: blur(4px);
+  }
+
+  .feedback-overlay.active { display: flex; animation: fadeIn 0.25s ease forwards; }
+
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  .feedback-card {
+    background: var(--surface);
+    border-radius: 2px;
+    padding: 28px 28px 24px;
+    max-width: 460px;
+    width: 100%;
+    text-align: center;
+    animation: popIn 0.3s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  }
+
+  @keyframes popIn {
+    from { transform: scale(0.9); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  .feedback-card.correct { border: 1px solid var(--good); box-shadow: 0 0 40px var(--green-glow); }
+  .feedback-card.wrong { border: 1px solid var(--bad); box-shadow: 0 0 40px var(--red-glow); }
+
+  .feedback-icon { font-size: 32px; margin-bottom: 10px; display: block; }
+
+  .feedback-verdict {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .feedback-card.correct .feedback-verdict { color: var(--good); }
+  .feedback-card.wrong .feedback-verdict { color: var(--bad); }
+
+  .feedback-explain {
+    font-size: 13px;
+    line-height: 1.65;
+    color: #9090b0;
+    font-weight: 300;
+    margin-bottom: 20px;
+  }
+
+  .feedback-explain strong { color: var(--text); font-weight: 500; }
+
+  .btn-next {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 11px 32px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 1px;
+    transition: all 0.2s;
+    width: 100%;
+  }
+
+  .btn-next:hover { border-color: var(--accent); color: var(--accent); }
+
+  .result-grade {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(3rem, 14vw, 5.5rem);
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+    text-align: center;
+  }
+
+  .result-grade.s { color: var(--accent); text-shadow: 0 0 40px rgba(232,201,109,0.4); }
+  .result-grade.a { color: var(--good); }
+  .result-grade.b { color: #7bc4a0; }
+  .result-grade.c { color: #d48060; }
+  .result-grade.f { color: var(--bad); }
+
+  .result-title {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    text-align: center;
+    color: var(--muted);
+  }
+
+  .result-score {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-align: center;
+  }
+
+  .prize-result {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--accent);
+    margin-bottom: 22px;
+    text-align: center;
+    padding: 8px 16px;
+    border: 1px solid rgba(232,201,109,0.3);
+    border-radius: 1px;
+    background: rgba(232,201,109,0.05);
+  }
+
+  .prize-result.no-prize {
+    color: var(--muted);
+    border-color: var(--border);
+    background: transparent;
+  }
+
+  .result-desc {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    padding: 20px 22px;
+    width: 100%;
+    margin-bottom: 20px;
+    font-size: 14px;
+    line-height: 1.7;
+    color: #a0a0bc;
+    font-weight: 300;
+    text-align: center;
+    position: relative;
+  }
+
+  .result-desc::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .result-desc.s::before { background: linear-gradient(90deg, var(--accent), #f0d880); }
+  .result-desc.a::before { background: linear-gradient(90deg, var(--good), #7bc4a0); }
+  .result-desc.b::before { background: linear-gradient(90deg, #7bc4a0, transparent); }
+  .result-desc.c::before { background: linear-gradient(90deg, #d48060, transparent); }
+  .result-desc.f::before { background: linear-gradient(90deg, var(--bad), transparent); }
+
+  .decisions-recap {
+    width: 100%;
+    margin-bottom: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .recap-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+    padding: 8px 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 1px;
+  }
+
+  .recap-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .recap-dot.correct { background: var(--good); }
+  .recap-dot.wrong { background: var(--bad); }
+  .recap-text { flex: 1; }
+  .recap-result { color: var(--text); }
+
+  .btn-restart {
+    background: transparent;
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    padding: 14px 36px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    border-radius: 1px;
+    transition: all 0.2s;
+    width: 100%;
+  }
+
+  .btn-restart:hover { background: var(--accent); color: #0d0d0f; }
+</style>
+</head>
+<body>
+
+<div class="screen active" id="screen-intro">
+  <div class="intro-eyebrow">WorldCom · 2002</div>
+  <h1 class="intro-title">You're the<br><span>Auditor.</span></h1>
+  <p class="intro-sub">7 questions. Were you paying attention?</p>
+
+  <div class="intro-card">
+    <p>
+      You just sat through a presentation on fraudulent accounting. Now prove you were listening.
+      <br><br>
+      Score <strong>5 or higher out of 7</strong> and you get a prize.
+    </p>
+  </div>
+
+  <div class="prize-banner">🍬 Score 5 / 7 or higher to win candy</div>
+
+  <button class="btn-primary" onclick="startGame()">START INVESTIGATION</button>
+</div>
+
+<div class="screen" id="screen-game">
+  <div class="progress-bar-wrap">
+    <div class="progress-meta">
+      <span class="progress-label">Question <span id="step-num">1</span> / 7</span>
+      <span class="timer-display" id="timer-text">20s</span>
+    </div>
+    <div class="progress-track">
+      <div class="progress-fill" id="progress-fill"></div>
+    </div>
+    <div class="timer-track">
+      <div class="timer-fill" id="timer-fill"></div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-stamp" id="scene-stamp"></div>
+    <h2 class="scene-title" id="scene-title"></h2>
+    <p class="scene-body" id="scene-body"></p>
+    <div class="hint-box" id="hint-box" style="display:none"></div>
+  </div>
+
+  <div class="choices-wrap" id="choices-wrap"></div>
+</div>
+
+<div class="feedback-overlay" id="feedback-overlay">
+  <div class="feedback-card" id="feedback-card">
+    <span class="feedback-icon" id="feedback-icon"></span>
+    <div class="feedback-verdict" id="feedback-verdict"></div>
+    <p class="feedback-explain" id="feedback-explain"></p>
+    <button class="btn-next" onclick="nextStep()">NEXT →</button>
+  </div>
+</div>
+
+<div class="screen" id="screen-result">
+  <div class="intro-eyebrow">Case Closed</div>
+  <div class="result-grade" id="result-grade"></div>
+  <div class="result-title" id="result-title"></div>
+  <div class="result-score" id="result-score"></div>
+  <div class="prize-result" id="prize-result"></div>
+  <div class="result-desc" id="result-desc"></div>
+  <div class="decisions-recap" id="decisions-recap"></div>
+  <button class="btn-restart" onclick="restart()">↩ TRY AGAIN</button>
+</div>
+
+<script>
+const TIMER_SECONDS = 35;
+const PRIZE_CUTOFF = 5;
+const TOTAL = 7;
+
+
+
+const steps = [
+  {
+    stamp: "Scene 1 — Suspicious Entry",
+    title: "A $400M entry nobody can explain.",
+    body: "You find a huge entry called <strong>\"prepaid capacity\"</strong>. No documentation. It looks like someone moved operating expenses into the assets column to inflate profits.",
+    hint: "Approved by Corporate Controller David Myers.",
+    choices: [
+      { letter: "A", text: "Hire an outside accountant to trace it.", correct: true,
+        feedback: { verdict: "Smart.", explain: "Cooper brought in Eugene Morse, who confirmed expenses were disguised as assets. Never take management's word for it." }
+      },
+      { letter: "B", text: "Ask CFO Scott Sullivan about it.", correct: false,
+        feedback: { verdict: "You just tipped off the bad guy.", explain: "Sullivan was one of the people running the fraud." }
+      },
+      { letter: "C", text: "A controller signed off on it. Probably fine.", correct: false,
+        feedback: { verdict: "That's what Arthur Andersen thought.", explain: "They trusted management and missed $3.8B in fraud for over a year." }
+      }
+    ]
+  },
+  {
+    stamp: "Scene 2 — Pushback",
+    title: "They want you to stop.",
+    body: "Controller <strong>David Myers</strong> tells you senior management is unhappy with your audit and wants you to drop it. Two teammates are getting nervous.",
+    hint: null,
+    choices: [
+      { letter: "A", text: "Keep going. Work late nights to avoid detection.", correct: true,
+        feedback: { verdict: "Correct.", explain: "That's exactly what Cooper did. When the people telling you to stop are who you're investigating, you keep going." }
+      },
+      { letter: "B", text: "Pause and wait for a neutral party to approve continuing.", correct: false,
+        feedback: { verdict: "Too slow.", explain: "Every day you wait, they have more time to destroy evidence." }
+      },
+      { letter: "C", text: "Take it straight to CEO Bernie Ebbers.", correct: false,
+        feedback: { verdict: "Wrong person.", explain: "Ebbers ordered the fake entries. You just walked into the lion's den." }
+      }
+    ]
+  },
+  {
+    stamp: "Scene 3 — You Have the Evidence",
+    title: "49 entries. $3.8 billion. What now?",
+    body: "Your team found expenses disguised as assets across 49 entries. WorldCom claimed a <strong>$130M profit</strong>. The real number was a <strong>$395M loss.</strong>",
+    hint: "Under GAAP, line costs are expenses. Not assets.",
+    choices: [
+      { letter: "A", text: "Bring it to the Board's Audit Committee with KPMG verifying independently.", correct: true,
+        feedback: { verdict: "Textbook.", explain: "KPMG confirmed the GAAP violation. Myers admitted everything. The restatement was triggered." }
+      },
+      { letter: "B", text: "Go straight to the media.", correct: false,
+        feedback: { verdict: "Too hasty.", explain: "Unverified findings give them a way out. Follow the process." }
+      },
+      { letter: "C", text: "Confront Myers directly with the 49 entries.", correct: false,
+        feedback: { verdict: "You showed your hand too early.", explain: "Myers was directly involved. He needs to be confronted in front of an independent body, not alone." }
+      }
+    ]
+  },
+  {
+    stamp: "Fraud Triangle",
+    title: "WorldCom execs told themselves it was just a temporary fix. Which part of the Fraud Triangle is that?",
+    body: "Three parts: Opportunity, Incentive, Rationalization.",
+    hint: null,
+    choices: [
+      { letter: "A", text: "Opportunity", correct: false,
+        feedback: { verdict: "No.", explain: "Opportunity is about weak controls that make fraud possible, not about justifying it." }
+      },
+      { letter: "B", text: "Incentive", correct: false,
+        feedback: { verdict: "No.", explain: "Incentive is the pressure to commit fraud, like hitting earnings targets." }
+      },
+      { letter: "C", text: "Rationalization", correct: true,
+        feedback: { verdict: "Correct.", explain: "<strong>Rationalization</strong> is how perpetrators justify the act to themselves. \"It's temporary\" is a classic example." }
+      }
+    ]
+  },
+  {
+    stamp: "Creative Accounting vs Fraud",
+    title: "A company uses a legal but aggressive interpretation of GAAP to inflate profits. Fraud or not?",
+    body: "There is a specific term for this from the presentation.",
+    hint: null,
+    choices: [
+      { letter: "A", text: "Yes, it's fraud. Misleading investors is never okay.", correct: false,
+        feedback: { verdict: "Not exactly.", explain: "The dividing line is legality. Staying within GAAP means it's not fraud, even if it's shady." }
+      },
+      { letter: "B", text: "No. It's creative accounting and it's legal.", correct: true,
+        feedback: { verdict: "Correct.", explain: "<strong>Creative accounting</strong> bends the rules without breaking them. Fraud crosses into illegal territory." }
+      },
+      { letter: "C", text: "Depends on how much they inflated.", correct: false,
+        feedback: { verdict: "Nope.", explain: "The amount doesn't matter. The line is whether GAAP was violated." }
+      }
+    ]
+  },
+  {
+    stamp: "Different Fraud Type",
+    title: "A CFO books $50M in sales that haven't happened yet to hit quarterly targets. What is this called?",
+    body: "This was covered in the presentation as one of the most common fraud types.",
+    hint: null,
+    choices: [
+      { letter: "A", text: "Premature revenue recognition", correct: true,
+        feedback: { verdict: "Correct.", explain: "Recording revenue before it's earned makes current results look stronger than they are." }
+      },
+      { letter: "B", text: "Expense capitalization", correct: false,
+        feedback: { verdict: "That's WorldCom's method.", explain: "Expense capitalization is recording expenses as long term assets. This is about fake sales." }
+      },
+      { letter: "C", text: "Cookie jar accounting", correct: false,
+        feedback: { verdict: "Nope.", explain: "Cookie jar accounting is hiding reserves in good years to use later. This is recording revenue that doesn't exist yet." }
+      }
+    ]
+  },
+  {
+    stamp: "The Aftermath",
+    title: "Which law was passed after WorldCom and Enron to hold executives personally accountable?",
+    body: "It also protects whistleblowers like Cynthia Cooper.",
+    hint: null,
+    choices: [
+      { letter: "A", text: "The Dodd Frank Act", correct: false,
+        feedback: { verdict: "Wrong era.", explain: "Dodd Frank came in 2010 after the financial crisis, not 2002." }
+      },
+      { letter: "B", text: "The Sarbanes Oxley Act", correct: true,
+        feedback: { verdict: "Correct.", explain: "<strong>SOX (2002)</strong> made CEOs and CFOs personally certify financial statements and created the PCAOB. Section 806 protects whistleblowers." }
+      },
+      { letter: "C", text: "The Securities Exchange Act", correct: false,
+        feedback: { verdict: "Too old.", explain: "That was passed in 1934. Predates WorldCom by about 70 years." }
+      }
+    ]
+  }
+];
+
+const grades = [
+  { min: 7, grade: "S", color: "s", title: "Cynthia Cooper", desc: "Perfect. You were paying attention." },
+  { min: 5, grade: "A", color: "a", title: "Senior Investigator", desc: "Prize territory. A couple of slips but the important stuff stuck." },
+  { min: 3, grade: "B", color: "b", title: "Staff Auditor", desc: "Decent. But the fraud partially survived. Were you actually listening?" },
+  { min: 1, grade: "C", color: "c", title: "Junior Associate", desc: "Most of the fraud got through. Arthur Andersen territory." },
+  { min: 0, grade: "F", color: "f", title: "Arthur Andersen", desc: "The fraud stayed buried. Their CPA licenses were revoked for this." }
+];
+
+let currentStep = 0, score = 0, timerInterval = null, timeLeft = TIMER_SECONDS, decisions = [], pendingNext = false;
+
+function startGame() {
+  showScreen('screen-game');
+  loadStep(0);
+}
+
+function loadStep(idx) {
+  currentStep = idx;
+  timeLeft = TIMER_SECONDS;
+  pendingNext = false;
+
+  const s = steps[idx];
+  document.getElementById('step-num').textContent = idx + 1;
+  document.getElementById('progress-fill').style.width = ((idx + 1) / TOTAL * 100) + '%';
+  document.getElementById('scene-stamp').textContent = s.stamp;
+  document.getElementById('scene-title').textContent = s.title;
+  document.getElementById('scene-body').innerHTML = s.body;
+
+  const hintBox = document.getElementById('hint-box');
+  if (s.hint) {
+    hintBox.textContent = '💡 ' + s.hint;
+    hintBox.style.display = 'block';
+  } else {
+    hintBox.style.display = 'none';
+  }
+
+  const wrap = document.getElementById('choices-wrap');
+  wrap.innerHTML = '';
+  s.choices.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.innerHTML = `<div class="choice-letter">${c.letter}</div><div class="choice-text">${c.text}</div>`;
+    btn.onclick = () => choose(i);
+    wrap.appendChild(btn);
+  });
+
+  startTimer();
+}
+
+function startTimer() {
+  clearInterval(timerInterval);
+  updateTimer();
+  timerInterval = setInterval(() => {
+    timeLeft--;
+    updateTimer();
+    if (timeLeft <= 0) { clearInterval(timerInterval); if (!pendingNext) choose(-1); }
+  }, 1000);
+}
+
+function updateTimer() {
+  const txt = document.getElementById('timer-text');
+  const fill = document.getElementById('timer-fill');
+  txt.textContent = timeLeft + 's';
+  fill.style.width = (timeLeft / TIMER_SECONDS * 100) + '%';
+  const urgent = timeLeft <= 6;
+  txt.classList.toggle('urgent', urgent);
+  fill.classList.toggle('urgent', urgent);
+}
+
+function choose(idx) {
+  if (pendingNext) return;
+  pendingNext = true;
+  clearInterval(timerInterval);
+
+  const step = steps[currentStep];
+  let correct = false, feedback;
+
+  if (idx === -1) {
+    feedback = { verdict: "Time's up.", explain: "You hesitated too long. The fraud buys another quarter." };
+  } else {
+    correct = step.choices[idx].correct;
+    feedback = step.choices[idx].feedback;
+  }
+
+  if (correct) score++;
+  decisions.push({ stamp: step.stamp, correct, choiceText: idx === -1 ? "No answer" : step.choices[idx].text });
+
+  const card = document.getElementById('feedback-card');
+  document.getElementById('feedback-icon').textContent = correct ? '✓' : '✗';
+  document.getElementById('feedback-verdict').textContent = feedback.verdict;
+  document.getElementById('feedback-explain').innerHTML = feedback.explain;
+  card.className = 'feedback-card ' + (correct ? 'correct' : 'wrong');
+  document.getElementById('feedback-overlay').classList.add('active');
+}
+
+function nextStep() {
+  document.getElementById('feedback-overlay').classList.remove('active');
+  const next = currentStep + 1;
+  if (next < steps.length) loadStep(next);
+  else showResult();
+}
+
+function showResult() {
+  showScreen('screen-result');
+  const g = grades.find(x => score >= x.min);
+  const won = score >= PRIZE_CUTOFF;
+
+  document.getElementById('result-grade').textContent = g.grade;
+  document.getElementById('result-grade').className = 'result-grade ' + g.color;
+  document.getElementById('result-title').textContent = g.title;
+  document.getElementById('result-score').textContent = score + ' / ' + TOTAL + ' correct';
+
+  const prize = document.getElementById('prize-result');
+  if (won) {
+    prize.textContent = '🍬 You won candy! Show this screen.';
+    prize.className = 'prize-result';
+  } else {
+    prize.textContent = 'No prize this time. Need ' + PRIZE_CUTOFF + '/' + TOTAL + ' to win.';
+    prize.className = 'prize-result no-prize';
+  }
+
+  const desc = document.getElementById('result-desc');
+  desc.textContent = g.desc;
+  desc.className = 'result-desc ' + g.color;
+
+  const recap = document.getElementById('decisions-recap');
+  recap.innerHTML = '';
+  decisions.forEach(d => {
+    const el = document.createElement('div');
+    el.className = 'recap-item';
+    el.innerHTML = `<div class="recap-dot ${d.correct ? 'correct' : 'wrong'}"></div><div class="recap-text">${d.stamp}</div><div class="recap-result">${d.correct ? '✓' : '✗'}</div>`;
+    recap.appendChild(el);
+  });
+}
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function restart() {
+  score = 0; currentStep = 0; decisions = []; pendingNext = false;
+  clearInterval(timerInterval);
+  showScreen('screen-intro');
+}
+</script>
+</body>
+</html>
